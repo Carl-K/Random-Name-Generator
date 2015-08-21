@@ -30,4 +30,3 @@ public:
 	void probabilitySetOfToConsole(char a, char b); //print set of probabilities
 	std::vector< std::string > generateNames(int minLength, int maxLength, int numNames); //create x number of names
 };
-
