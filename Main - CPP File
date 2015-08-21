@@ -1,0 +1,135 @@
+#include "stdafx.h"
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <time.h>
+
+#include "secondOrderMarkovModel.h"
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	while (true)
+	{
+
+	srand (time(NULL));
+
+	std::ifstream *namesFile = new std::ifstream();
+
+	while (true) //specify male or female names
+	{
+		std::cout << "Male (M) or Female (F): ";
+		char s;
+		std::cin.get(s);
+		
+		if (s == 'M')
+		{
+			(*namesFile).open("namesBoys.txt");
+			break;
+		}
+		else if (s == 'F')
+		{
+			(*namesFile).open("namesGirls.txt");
+			break;
+		}
+
+		std::cin.clear(); //next two clears cin buffer
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+	
+	unsigned int minLength, maxLength, numNames; //unsigned is not considered by cin
+
+	while ( true ) //specify minimum length of words
+	{
+		std::cout << "Minimum length of names generated (int): ";
+		std::string s;
+		std::cin >> s;
+
+		if (s.at(0) != '-' && isdigit(s.at(0)))
+		{
+			minLength = stoi(s);
+			break;
+		}
+
+		std::cin.clear(); //next two clears cin buffer
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+
+	while ( true ) //specify maximum length of words
+	{
+		std::cout << "Maximum length of names generated (int): ";
+		std::string s;
+		std::cin >> s;
+
+		if (s.at(0) != '-' && isdigit(s.at(0)))
+		{
+			maxLength = stoi(s);
+			if (maxLength >= minLength)
+			{
+				break;
+			}
+		}
+
+		std::cin.clear(); //next two clears cin buffer
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+
+	while ( true ) //specify total number of words to generate
+	{
+		std::cout << "Total number of names to generate (int): ";
+		std::string s;
+		std::cin >> s;
+
+		if (s.at(0) != '-' && isdigit(s.at(0)))
+		{
+			numNames = stoi(s);
+			if (numNames > 0)
+			{
+				break;
+			}
+		}
+
+		std::cin.clear(); //next two clears cin buffer
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+
+	secondOrderMarkovModel *m = new secondOrderMarkovModel( namesFile, "abcdefghijklmnopqrstuvwxyz_" ); //only works for this alphabet, didn't get around to making it work for any sequence of chars
+	std::vector< std::string > v = m->generateNames(minLength, maxLength, numNames);
+
+	std::cout << "\n----- NEW NAMES -----\n" ;
+	for (int i = 0; i < v.size(); i++)
+	{
+		std::cout << v.at(i) << '\n' ;
+	}
+	std::cout << "---------------------\n\n" ;
+
+	(*namesFile).close();
+
+	std::cin.clear(); //next two clears cin buffer
+	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	while(true)
+	{
+		std::cout << "ENTER 1 TO START OVER\nENTER 2 TO EXIT PROGRAM\n" ;
+		char s;
+		std::cin.get(s);
+
+		if (s == '1')
+		{
+			std::cout << '\n' ;
+			break;
+		}
+		else if (s == '2')
+		{
+			return 0;
+		}
+
+		std::cin.clear(); //next two clears cin buffer
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+
+	std::cin.clear(); //next two clears cin buffer
+	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+	}
+}
