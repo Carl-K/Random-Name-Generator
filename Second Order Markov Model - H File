@@ -1,208 +1,33 @@
-#include "StdAfx.h"
-#include "secondOrderMarkovModel.h"
+#pragma once
 
-secondOrderMarkovModel::secondOrderMarkovModel(std::ifstream *file, const std::string userDefinedAbstractIndice)
+#include <vector>
+#include <climits>
+#include <iostream>
+#include <fstream>
+#include <string>
+
+class secondOrderMarkovModel
 {
-	this->abstractIndice.assign(userDefinedAbstractIndice); //pass alphabet for class usage, maybe just use string length, string itself never used other than for length()
+private:
+	std::string abstractIndice; //stores potential chars to deal with
+	std::vector< std::vector < std::vector< double > > > table; //second order markov model
+	std::vector< std::vector< int > > totals; //stores total in case we ever need to reproduce original counts
+	std::vector< std::string > undashedNames; //stores names to check against generated names
+	bool alreadyExists( std::string s ); //check if name already exists
+	int binarySearch( std::string s ); //binary search on dashedNames
+	int binarySearchHelper( std::string s, std::vector< std::string > v, int lo, int hi ); //recursive helper function
 
-	for (int i = 0; i < this->abstractIndice.length(); i++) //initialize table and totals
-	{
-		this->table.push_back( std::vector< std::vector< double > >() );
-		for (int j = 0; j < this->abstractIndice.length(); j++)
-		{
-			this->table[i].push_back( std::vector< double >() );
-			this->totals.push_back( std::vector< int >() );
-			for (int k = 0; k < this->abstractIndice.length(); k++)
-			{
-				this->table[i][j].push_back(0.0);
-				this->totals[j].push_back(0);
-			}
-		}
-	}
-	this->fillWithFile(file);
-}
+	void fillWithFile(std::ifstream *file); //fill table with probabilities
+	int alphabetLowerToIndex(char c); //convert ASCII letters to alphabet letters (a becomes 0 instead of 97)
+	char indexToAlphabetLower(int n); //convert index 0 through 26 to alphabet letter (a ... z, _)
+	std::string generateName(int minLength, int maxLength); //create one name
+	char getCharFromProbabilities(char a, char b); //get char from set of probabilities of previous 2 chars
+public:
+	secondOrderMarkovModel(std::ifstream *file, const std::string userDefinedAbstractIndice); //takes file of names and user defined alphabet
+	~secondOrderMarkovModel(void);
 
-secondOrderMarkovModel::~secondOrderMarkovModel(void)
-{
-}
+	void probabilitiesToConsole(); //print all probabilities
+	void probabilitySetOfToConsole(char a, char b); //print set of probabilities
+	std::vector< std::string > generateNames(int minLength, int maxLength, int numNames); //create x number of names
+};
 
-void secondOrderMarkovModel::fillWithFile(std::ifstream *file)
-{
-	while ( !(*file).eof() ) //fill in indice with counts
-	{
-		std::string s;
-		getline( (*file), s );
-		this->undashedNames.push_back( s ); //store name for checking against new names
-		s.insert(0, "__"); //append __
-		s.append("__");
-		
-		for (int i = 0; i < s.length() - 2; i++) //fill table with
-		{
-			this->table[ this->alphabetLowerToIndex( s[i] ) ][ this->alphabetLowerToIndex( s[i + 1] ) ][ this->alphabetLowerToIndex( s[i + 2] ) ]++; //add 1 to correct probability index
-			this->totals[ this->alphabetLowerToIndex( s[i] ) ][ this->alphabetLowerToIndex( s[i + 1] ) ]++; //add 1 to correct total index, more efficient than below commented block of code
-		} //^
-	}     //|
-	/*      v
-	for (int i = 0; i < this->abstractIndice.length(); i++) //count up totals per row
-	{
-		for (int j = 0; j < this->abstractIndice.length(); j++)
-		{
-			for (int k = 0; k < this->abstractIndice.length(); k++)
-			{
-				this->totals[i][j] += this->table[ i ][ j ][ k ];
-			}
-		}
-	}
-	*/
-	for (int i = 0; i < this->abstractIndice.length(); i++) //replace current indice value with percentage
-	{
-		for (int j = 0; j < this->abstractIndice.length(); j++)
-		{
-			for (int k = 0; k < this->abstractIndice.length(); k++)
-			{
-				
-				if ( this->totals[i][j] != 0 ) //do not divide by zero!
-				{
-					this->table[ i ][ j ][ k ] /= this->totals[i][j]; //divide  array total by row total, row stochastic
-				}
-			}
-		}
-	}
-	
-}
-
-std::vector< std::string > secondOrderMarkovModel::generateNames(int minLength, int maxLength, int numNames)
-{
-	std::vector< std::string > v;
-	while (numNames > 0)
-	{
-		v.push_back( this->generateName( minLength, maxLength ) );
-		numNames--;
-		
-		for (int i = 1; i < v.size() - 1; i++)
-		{
-			if ( v.at( v.size() - 1 ).compare( v.at( i ) ) == 0 ) //if name already generated before
-			{
-				v.pop_back();
-				numNames++;
-				break;
-			}
-		}
-		
-	}
-	return v;
-}
-
-std::string secondOrderMarkovModel::generateName(int minLength, int maxLength)
-{
-	std::string s;
-	while (true)
-	{
-		s.assign("__"); //append __ , replacing current string content
-		while(true) //create name
-		{
-			s += this->indexToAlphabetLower( this->getCharFromProbabilities( s.at( s.length() - 2 ), s.at( s.length() - 1 ) ) ); //get letter that would probably happen next
-			if ( s.at( s.length() - 1 ) == '_' && s.at( s.length() - 2 ) == '_' ) //if name done
-			{
-				break;
-			}
-		}
-
-		s = std::string (s.begin() + 2, s.end() - 2); //remove underscores
-		s[0] = toupper( s[0] ); //uppercase firt letter
-
-		if ( s.length() >= minLength && s.length() <= maxLength && !this->alreadyExists( s ) ) //check if name is correct length and does not exist in file set of names
-		{
-			break;
-		}
-	}
-
-	return s;
-}
-
-char secondOrderMarkovModel::getCharFromProbabilities(char a, char b)
-{
-	//generate random number, iterate through row, from row[start] to row[end] add its probability to the total count, 
-	//if total count is greater than random number use that index
-	double accum = 0.0;
-	double randNum = ((double)rand() / RAND_MAX);
-	for (int i = 0; i < this->abstractIndice.length(); i++)
-	{
-		accum += this->table[ this->alphabetLowerToIndex( a ) ][ this->alphabetLowerToIndex( b ) ][ i ];
-		if ( accum > randNum )
-		{
-			return i; //return next character as index to append
-		}
-	}
-	return this->abstractIndice.length() - 1; //return '_'
-}
-
-bool secondOrderMarkovModel::alreadyExists( std::string s )
-{
-	return (this->binarySearch( s ) == -1 ? false : true); //binary search list of names to see if name already exists
-}
-
-int secondOrderMarkovModel::binarySearch( std::string s )
-{
-	return this->binarySearchHelper( s, this->undashedNames, 0, this->undashedNames.size() - 1 );
-}
-
-int secondOrderMarkovModel::binarySearchHelper( std::string s, std::vector< std::string > v, int lo, int hi )
-{
-	if ( lo > hi)
-	{
-		return -1;
-	}
-
-	if ( s.compare( this->undashedNames.at( (lo + ((hi - lo) / 2)) ) ) == 0 ) //if s found
-	{
-		return (lo + ((hi - lo) / 2));
-	}
-	else if ( s.compare( this->undashedNames.at( (lo + ((hi - lo) / 2)) ) ) == 1 ) //if s greater
-	{
-		return this->binarySearchHelper( s, v, (lo + ((hi - lo) / 2)) + 1, hi );
-	}
-	else //if s less
-	{
-		return this->binarySearchHelper( s, v, lo, (lo + ((hi - lo) / 2)) - 1 );
-	}
-}
-
-void secondOrderMarkovModel::probabilitiesToConsole() //print all probabilities to console
-{
-	for (int i = 0; i < this->abstractIndice.length(); i++)
-	{
-		for (int j = 0; j < this->abstractIndice.length(); j++)
-		{
-			this->probabilitySetOfToConsole( this->indexToAlphabetLower( i ), this->indexToAlphabetLower( j ) );
-		}
-	}
-
-}
-
-void secondOrderMarkovModel::probabilitySetOfToConsole(char a, char b) //print specific probability to console
-{
-	double total = 0.0;
-	for (int k = 0; k < this->abstractIndice.length(); k++)
-	{
-		std::cout << this->indexToAlphabetLower(k) << 
-				" after " << 
-				a << 
-				b << 
-				" is " << 
-				this->table[this->alphabetLowerToIndex(a)][this->alphabetLowerToIndex(b)][k] << 
-				'\n' ;
-			total += this->table[this->alphabetLowerToIndex(a)][this->alphabetLowerToIndex(b)][k];
-		}
-		std::cout<< "Total percentage count is " << total << "\n\n" ;
-}
-
-int secondOrderMarkovModel::alphabetLowerToIndex(char c) //convert ASCII number to alphabet number
-{
-	return ( (c == '_') ? this->abstractIndice.length() - 1 : (int)tolower(c) - 97 );
-}
-
-char secondOrderMarkovModel::indexToAlphabetLower(int n) //convert alphabet number to ASCII number
-{
-	return ( (n == this->abstractIndice.length() - 1) ? '_' : (char)(n + 97) );
-}
